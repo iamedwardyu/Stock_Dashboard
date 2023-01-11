@@ -1,0 +1,11 @@
+finplot==1.8.2
+matplotlib==3.5.2
+numpy==1.23.1
+pandas==1.4.3
+pandas_market_calendars==3.5
+plotly==5.9.0
+polygon==1.1.0
+requests==2.28.1
+sec_api==1.0.14
+streamlit==1.16.0
+~treamlit==1.10.0
