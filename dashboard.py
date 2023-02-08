@@ -14,6 +14,7 @@ from plotly.subplots import make_subplots
 from matplotlib import pyplot as plt
 #from market_profile import MarketProfile
 import pandas_market_calendars as mcal
+import openpyxl
 #import talib as ta
 import urllib
 #from helper import format_number_two
@@ -63,7 +64,8 @@ if screen =="Overview":
     r_details = r_details.json()
     df_details = pd.json_normalize(r_details['results'])
     # if df_details['weighted_shares_outstanding'].empty:
-    recent_OS = df_details['weighted_shares_outstanding'][0] / 1000000
+    #recent_OS = df_details['weighted_shares_outstanding'][0] / 1000000
+    recent_OS = 1
     recent_OS_clean = recent_OS
     recent_OS = '{:,.2f}'.format(recent_OS)
 
@@ -490,6 +492,7 @@ if screen =="Overview":
 
 
     revised_data = price[-200:]
+    st.dataframe(revised_df)
 
 
     st.subheader("| RESISTANCE STATS")
@@ -902,32 +905,41 @@ if screen == "Intraday Stats":
 
 if screen == "P&L":
     st.write("P&L Comparison")
-    df_profit = pd.read_excel("C:\\Users\\yusun\\OneDrive - Huntington Hospitality Financial Corporation\\EDWARDY HHG\\P&L Review\\data_pl.xlsx")
+    df_raw = pd.read_excel("C:\\Users\\yusun\\OneDrive - Huntington Hospitality Financial Corporation\\EDWARDY HHG\\P&L Review\\data_pl.xlsx")
 
-    st.write(df_profit)
+    st.write(df_raw)
 
     options_hotel = st.multiselect(
         'Select hotel',
         ['107', '121', '124'], ['107'])
 
-    options_mon = st.multiselect(
-        'Select Month',
-        ['Jan', 'Feb', 'Mar'], ['Jan'])
+    options_mon = ['Jan', 'Feb', 'Mar', 'Apr','May','Jun','Jul','Aug','Sept','Oct','Nov','Dec']
 
+    enter_month = st.number_input("Enter month",min_value=1,max_value=12)
 
-
-    filtered_df = df_profit[(df_profit['CompanyID'].isin(options_hotel)) & (df_profit['Acct Class ID']=='RMRENTREV')]
-    filtered_df = filtered_df[options_mon]
+    #filtered_df = df_profit.loc[
+    #    (df_profit['CompanyID'].isin(options_hotel)) & (df_profit['Acct Class ID'] == 'RMRENTREV')]
+    df = df_raw[df_raw['CompanyID'].isin(options_hotel)& (df_raw['Acct Class ID'] == 'RMRENTREV')& (df_raw['Actual/Budget'] == 'A')]
+    #filtered_df = filtered_df.loc[filtered_df['Acct Class ID'] == 'RMRENTREV']
+    #filtered_df = filtered_df[options_mon]
 
 
     st.write("Room Revenue")
-    st.dataframe(filtered_df)
-    print(filtered_df.dtypes)
+    st.dataframe(df)
+    #print(filtered_df.dtypes)
 
-    filtered_df_roompay = df_profit[(df_profit['CompanyID'].isin(options_hotel)) & (df_profit['Acct Class ID']=='PYWROOM')]
-    filtered_df_roompay = filtered_df[options_mon]
+    #filtered_df = df_profit[(df_profit['CompanyID'].isin(options_hotel)) & (df_profit['Acct Class ID']=='PYWROOM')]
+    df = df[options_mon]
 
+    #slices the first n columns with enter_month
+    df=df.iloc[:,:enter_month]
+    df['YTD Total'] = df.sum(axis=1)
+    #df.loc['YTD Totals'] = df.sum(axis=0)
+    #result = df[options_mon].sum()
+    #st.write("Room pay")
+    st.dataframe(df)
 
-    st.write("Room pay")
-    st.dataframe(filtered_df_roompay)
+    month_rev = enter_month-1
+    df_current = df.iloc[:,[enter_month-1]]
+    st.dataframe(df_current)
 
