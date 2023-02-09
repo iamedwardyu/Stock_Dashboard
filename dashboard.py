@@ -506,7 +506,7 @@ if screen =="Overview":
 
 
     revised_data = price[-200:]
-    revised_df = revised_df[['Gap Up%','HOD%','Close vs Open%','Low vs Open%','Time of PMH','Time of HOD','Close Below Open?', 'HOD vs PMH','HOD greater PMH?',]]
+    revised_df = revised_df[['t','Gap Up%','HOD%','Close vs Open%','Low vs Open%','Time of PMH','Time of HOD','Close Below Open?', 'HOD vs PMH','HOD greater PMH?',]]
     st.dataframe(revised_df)
 
 
