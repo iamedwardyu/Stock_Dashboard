@@ -314,6 +314,8 @@ if screen =="Overview":
 
     revised_df['t'] = pd.to_datetime(revised_df['t']).dt.strftime('%Y-%m-%d')
     PM_high_list = []
+    time_stamp_PMH_list = []
+    time_stamp_HOD_list = []
 
     for items in revised_df['t']:
         # items = items.strftime('%Y-%m-%d')
@@ -327,17 +329,29 @@ if screen =="Overview":
         df_intra['t'] = df_intra['t'].dt.tz_convert('America/New_York')
         df_intra['t'] = pd.to_datetime(df_intra['t']).dt.strftime("%H:%M")
         PM_high = df_intra.loc[(df_intra['t'] >= "04:00") & (df_intra['t'] <= "09:29"), 'h'].max()
+        #time_PMH = df_intra['t'][PM_high]
+        #id_time_PMH = df_intra[].idxmax()
         PM_high_list.append(PM_high)
-        #revised_df = pd.concat([revised_df, PM_high])
-        # PM_stats = pd.concat([PM_stats,PM_high])
+
+        PM_high_index = df_intra.loc[(df_intra['t'] >= "04:00") & (df_intra['t'] <= "09:29"), 'h'].idxmax()
+        PMH = df_intra.at[PM_high_index, 'h']
+
+        time_stamp_PMH = df_intra.at[PM_high_index, 't']
+        time_stamp_PMH_list.append(time_stamp_PMH)
+
+        high_index = df_intra.loc[(df_intra['t'] >= "09:30") & (df_intra['t'] <= "16:00"), 'h'].idxmax()
+        HOD = df_intra.at[high_index, 'h']
+
+        time_stamp_HOD = df_intra.at[high_index, 't']
+        time_stamp_HOD_list.append(time_stamp_HOD)
 
         # print(PM_stats)
         # revised_df.columns = [*revised_df.columns[:1],'PMH']
     num_C_less_O = revised_df[revised_df['Close Below Open?'] == 1].value_counts().shape[0]
     num_C_greater_O = revised_df[revised_df['Close Below Open?'] == 0].value_counts().shape[0]
     revised_df['PMH'] = PM_high_list
-
-
+    revised_df['Time of PMH'] = time_stamp_PMH_list
+    revised_df['Time of HOD'] = time_stamp_HOD_list
     revised_df['HOD vs PMH'] = revised_df['h'] / revised_df['PMH'] - 1
     revised_df['HOD greater PMH?'] = np.where((revised_df['HOD vs PMH'] > 0), 1, 0)
 
@@ -492,6 +506,7 @@ if screen =="Overview":
 
 
     revised_data = price[-200:]
+    revised_df = revised_df[['Gap Up%','HOD%','Close vs Open%','Low vs Open%','Time of PMH','Time of HOD','Close Below Open?', 'HOD vs PMH','HOD greater PMH?',]]
     st.dataframe(revised_df)
 
 
