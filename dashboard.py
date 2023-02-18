@@ -166,6 +166,43 @@ if screen =="Overview":
     fig_daily.update_layout(height=600,width=800, showlegend=False)
     st.plotly_chart(fig_daily, use_container_width=True)
 
+    ###intraday chart
+    #D2 = "02-17-2023"
+    date_input = st.text_input("Enter Date",f'{y}')
+    tf_input = st.text_input("Enter min timeframe", '5')
+    intra_price = requests.get(f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/{tf_input}/minute/{date_input}/{date_input}?adjusted=true&sort=asc&apiKey={config.poly_api_key}")
+
+    intra_price = intra_price.json()
+    intra = pd.json_normalize(intra_price['results'])
+
+    intra['t'] = pd.to_datetime(intra['t'], unit='ms')
+    intra['t'] = intra['t'].dt.tz_localize('UTC')
+    intra['t'] = intra['t'].dt.tz_convert('America/New_York')
+    intra['t'] = pd.to_datetime(intra['t']).dt.strftime("%Y-%m-%d %H:%M")
+    intra['v'] = intra['v'].astype(float)
+    intra = intra.astype({'t':'datetime64[ns]'})
+    # calculate vwap
+    intra['hlc3'] = (intra['h'] + intra['l'] + intra['c']) / 3
+    intra['hlc3v'] = intra['hlc3'] * intra['v']
+    intra['vwap'] = intra['hlc3v'].cumsum() / intra['v'].cumsum()
+
+
+    fig_intra = make_subplots(rows=2,cols=1,row_width=[0.2, 0.7],vertical_spacing=0.07)
+    stock_title = f'{symbol} - {date_input}'
+    fig_intra.update_layout(title=stock_title)
+
+    chart_intra = go.Candlestick(x=intra['t'], open=intra['o'],high=intra['h'],low=intra['l'],close=intra['c'])
+    fig_intra.add_trace(chart_intra,row=1,col=1)
+
+
+    vwap_intra = go.Scatter(x=intra['t'], y=intra['vwap'],mode='lines', line = dict(color='#ff66ff'),name = 'vwap')
+    fig_intra.add_trace(vwap_intra,row=1,col=1)
+
+    fig_intra.add_trace(go.Bar(x=intra['t'], y=intra['v'],marker=dict(color='#F59DBB'),showlegend=False),row=2,col=1)
+    fig_intra.update(layout_xaxis_rangeslider_visible=False)
+    fig_intra.update_layout(height=600,width=800, showlegend=False)
+    st.plotly_chart(fig_intra, use_container_width=True)
+
 
     st.text("")
     st.text("")
@@ -302,15 +339,13 @@ if screen =="Overview":
     price = pd.json_normalize(r_price['results'])
 
     price_stats(price)
-    fp = f"C:\\Users\\yusun\\Dropbox\\Stocks\\Stock Models\\Data\\{symbol}-gap stats.xlsx"
 
     revised_df = price[price['Gap Up%'] > GU]
-    #fp2 = f"C:\\Users\\yusun\\Dropbox\\Stocks\\Stock Models\\Data\\{symbol}-gap stats revised.xlsx"
-    #revised_df.to_excel(fp2, header=True)
+
 
     totalentries = revised_df.shape[0]
 
-    print(revised_df)
+
 
     revised_df['t'] = pd.to_datetime(revised_df['t']).dt.strftime('%Y-%m-%d')
     PM_high_list = []
@@ -345,8 +380,7 @@ if screen =="Overview":
         time_stamp_HOD = df_intra.at[high_index, 't']
         time_stamp_HOD_list.append(time_stamp_HOD)
 
-        # print(PM_stats)
-        # revised_df.columns = [*revised_df.columns[:1],'PMH']
+
     num_C_less_O = revised_df[revised_df['Close Below Open?'] == 1].value_counts().shape[0]
     num_C_greater_O = revised_df[revised_df['Close Below Open?'] == 0].value_counts().shape[0]
     revised_df['PMH'] = PM_high_list
@@ -355,8 +389,21 @@ if screen =="Overview":
     revised_df['HOD vs PMH'] = revised_df['h'] / revised_df['PMH'] - 1
     revised_df['HOD greater PMH?'] = np.where((revised_df['HOD vs PMH'] > 0), 1, 0)
 
-    revised_df.to_excel(fp, header=True)
 
+    @st.cache
+    def convert_df(df):
+        # IMPORTANT: Cache the conversion to prevent computation on every rerun
+        return df.to_csv().encode('utf-8')
+
+
+    csv = convert_df(revised_df)
+
+    st.download_button(
+        label="Download data as CSV",
+        data=csv,
+        file_name=f'{symbol}_gap_stats.csv',
+        mime='text/csv',
+    )
 
 
     num_h_greater_pmh = revised_df[revised_df['HOD greater PMH?'] == 1].value_counts().shape[0]
@@ -508,6 +555,8 @@ if screen =="Overview":
     revised_data = price[-200:]
     revised_df = revised_df[['t','Gap Up%','HOD%','Close vs Open%','Low vs Open%','Time of PMH','Time of HOD','Close Below Open?', 'HOD vs PMH','HOD greater PMH?',]]
     st.dataframe(revised_df)
+
+
 
 
     st.subheader("| RESISTANCE STATS")
@@ -914,47 +963,4 @@ if screen == "Intraday Stats":
         fpPOC = f"C:\\Users\\yusun\\Dropbox\\Stocks\\Stock Models\\Data\\{symbol}-poc-data.xlsx"
         df_hvn.to_excel(fpPOC, header=True)
 
-
-
-#################I/O CODE###################
-
-if screen == "P&L":
-    st.write("P&L Comparison")
-    df_raw = pd.read_excel("C:\\Users\\yusun\\OneDrive - Huntington Hospitality Financial Corporation\\EDWARDY HHG\\P&L Review\\data_pl.xlsx")
-
-    st.write(df_raw)
-
-    options_hotel = st.multiselect(
-        'Select hotel',
-        ['107', '121', '124'], ['107'])
-
-    options_mon = ['Jan', 'Feb', 'Mar', 'Apr','May','Jun','Jul','Aug','Sept','Oct','Nov','Dec']
-
-    enter_month = st.number_input("Enter month",min_value=1,max_value=12)
-
-    #filtered_df = df_profit.loc[
-    #    (df_profit['CompanyID'].isin(options_hotel)) & (df_profit['Acct Class ID'] == 'RMRENTREV')]
-    df = df_raw[df_raw['CompanyID'].isin(options_hotel)& (df_raw['Acct Class ID'] == 'RMRENTREV')& (df_raw['Actual/Budget'] == 'A')]
-    #filtered_df = filtered_df.loc[filtered_df['Acct Class ID'] == 'RMRENTREV']
-    #filtered_df = filtered_df[options_mon]
-
-
-    st.write("Room Revenue")
-    st.dataframe(df)
-    #print(filtered_df.dtypes)
-
-    #filtered_df = df_profit[(df_profit['CompanyID'].isin(options_hotel)) & (df_profit['Acct Class ID']=='PYWROOM')]
-    df = df[options_mon]
-
-    #slices the first n columns with enter_month
-    df=df.iloc[:,:enter_month]
-    df['YTD Total'] = df.sum(axis=1)
-    #df.loc['YTD Totals'] = df.sum(axis=0)
-    #result = df[options_mon].sum()
-    #st.write("Room pay")
-    st.dataframe(df)
-
-    month_rev = enter_month-1
-    df_current = df.iloc[:,[enter_month-1]]
-    st.dataframe(df_current)
 
